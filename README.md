@@ -1,6 +1,6 @@
 # Market Making Simulator
 
-![Build Status](https://github.com/yourusername/market-making-simulator/workflows/CI/badge.svg)
+![Build Status](https://github.com/CobingDaily/market-making-simulator/workflows/CI/badge.svg)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 High-performance market-making simulation library built with Java 21.
