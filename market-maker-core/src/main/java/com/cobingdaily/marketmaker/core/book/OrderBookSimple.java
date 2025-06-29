@@ -7,80 +7,113 @@ import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Simple order book implementation using PriceLevel
+ *
+ * <ul>
+ *   <li>Price-time priority for order matching</li>
+ *   <li>O(log n) insertion and best price lookup</li>
+ *   <li>O(1) order lookup by ID</li>
+ * </ul>
+ */
 public class OrderBookSimple implements OrderBook{
-    private final TreeMap<BigDecimal, Queue<Order>> bids;
-    private final TreeMap<BigDecimal, Queue<Order>> asks;
-    private final Map<String, Order> orderMap;
+    private final TreeMap<BigDecimal, PriceLevel> bids;
+    private final TreeMap<BigDecimal, PriceLevel> asks;
+    private final Map<String, OrderLocation> orderLocationMap;
+
+    /** Helper record to track where an order is located in the book. */
+    private record OrderLocation(Order order, PriceLevel priceLevel) {}
 
     public OrderBookSimple() {
         bids = new TreeMap<>(Collections.reverseOrder());
         asks = new TreeMap<>();
-        orderMap = new ConcurrentHashMap<>();
-    }
-
-    @Override
-    public Optional<Order> getOrder(String orderId) {
-        var order = orderMap.get(orderId);
-        if (order == null)
-            return Optional.empty();
-
-        return Optional.of(order);
-    }
-
-    @Override
-    public Queue<Order> getOrdersAtPrice(Side side, BigDecimal price) {
-        var book = getBookForSide(side);
-
-        return book.get(price);
+        orderLocationMap = new ConcurrentHashMap<>();
     }
 
     @Override
     public void addOrder(Order order) {
-        boolean invalidOrder = order == null || order.quantity().compareTo(BigDecimal.ZERO) <= 0;
-        if (invalidOrder)
-            throw new IllegalArgumentException("Invalid Order");
+        validateOrder(order);
 
         var book = getBookForSide(order.side());
+        var priceLevel = book.computeIfAbsent(order.price(), PriceLevel::new);
 
-        book.computeIfAbsent(order.price(), x -> new LinkedList<>()).offer(order);
-
-        orderMap.put(order.orderId(), order);
+        priceLevel.addOrder(order);
+        orderLocationMap.put(order.orderId(), new OrderLocation(order, priceLevel));
     }
 
     @Override
     public void removeOrder(String orderId) {
-        Order order = orderMap.remove(orderId);
-        if (order == null) {
+        Objects.requireNonNull(orderId, "Order ID cannot be null");
+
+        var location = orderLocationMap.remove(orderId);
+        if (location == null) {
             return;
         }
 
-        var book = getBookForSide(order.side());
-        var level = book.get(order.price());
+        var priceLevel = location.priceLevel();
+        var removedOrder = priceLevel.removeOrder(orderId);
 
-        if (level != null) {
-            level.remove(order);
-
-            // Remove empty price levels
-            if (level.isEmpty()) {
-                book.remove(order.price());
-            }
+        if (removedOrder != null && priceLevel.isEmpty()) {
+            var book = getBookForSide(removedOrder.side());
+            book.remove(removedOrder.price());
         }
+    }
+
+    @Override
+    public Optional<Order> getOrder(String orderId) {
+        Objects.requireNonNull(orderId, "Order ID cannot be null");
+
+        var location = orderLocationMap.get(orderId);
+        if (location == null)
+            return Optional.empty();
+
+        return Optional.of(location.order());
+    }
+
+    @Override
+    public Queue<Order> getOrdersAtPrice(Side side, BigDecimal price) {
+        Objects.requireNonNull(side, "Side cannot be null");
+        Objects.requireNonNull(price, "Price cannot be null");
+
+        var priceLevel = getBookForSide(side).get(price);
+        return priceLevel == null ? null : priceLevel.getOrders();
+    }
+
+    @Override
+    public BigDecimal getQuantityAtPrice(Side side, BigDecimal price) {
+        Objects.requireNonNull(side, "Side cannot be null");
+        Objects.requireNonNull(price, "Price cannot be null");
+
+        var priceLevel = getBookForSide(side).get(price);
+        return priceLevel == null ? BigDecimal.ZERO : priceLevel.getTotalQuantity();
+    }
+
+    @Override
+    public int getPriceLevelCount(Side side) {
+        return getBookForSide(side).size();
+    }
+
+    @Override
+    public List<PriceLevel> getTopPriceLevels(Side side, int levels) {
+        if (levels <= 0) {
+            return Collections.emptyList();
+        }
+
+        return getBookForSide(side)
+                .values()
+                .stream()
+                .limit(levels)
+                .toList();
     }
 
     @Override
     public Optional<BigDecimal> getBestBid() {
-        if (bids.isEmpty()) {
-            return Optional.empty();
-        }
-        return Optional.of(bids.firstKey());
+        return bids.isEmpty() ? Optional.empty() : Optional.of(bids.firstKey());
     }
 
     @Override
     public Optional<BigDecimal> getBestAsk() {
-        if (asks.isEmpty()) {
-            return Optional.empty();
-        }
-        return Optional.of(asks.firstKey());
+        return asks.isEmpty() ? Optional.empty() : Optional.of(asks.firstKey());
     }
 
     @Override
@@ -97,26 +130,72 @@ public class OrderBookSimple implements OrderBook{
 
     @Override
     public int getMarketDepth(Side side) {
-        var book = getBookForSide(side);
-
-        return book.values()
+        return getBookForSide(side)
+                .values()
                 .stream()
-                .mapToInt(Collection::size)
+                .mapToInt(PriceLevel::getOrderCount)
                 .sum();
     }
 
     @Override
     public int getMarketDepth(Side side, int levels) {
-        var book = getBookForSide(side);
+        if (levels <= 0) {
+            return 0;
+        }
 
-        return book.values()
+        return getBookForSide(side)
+                .values()
                 .stream()
                 .limit(levels)
-                .mapToInt(Collection::size)
+                .mapToInt(PriceLevel::getOrderCount)
                 .sum();
     }
 
-    private TreeMap<BigDecimal, Queue<Order>> getBookForSide(Side side) {
+    @Override
+    public int getTotalOrderCount() {
+        return getMarketDepth(Side.BUY) + getMarketDepth(Side.SELL);
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return bids.isEmpty() && asks.isEmpty();
+    }
+
+    @Override
+    public void clear() {
+        bids.clear();
+        asks.clear();
+        orderLocationMap.clear();
+    }
+
+    private TreeMap<BigDecimal, PriceLevel> getBookForSide(Side side) {
         return side == Side.BUY ? bids : asks;
+    }
+
+    private void validateOrder(Order order) {
+        if (order == null) {
+            throw new IllegalArgumentException("Order cannot be null");
+        }
+
+        if (order.quantity().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Order quantity must be positive");
+        }
+
+        if (order.orderId() == null || order.orderId().isBlank()) {
+            throw new IllegalArgumentException("Order ID cannot be null or blank");
+        }
+
+        // Ensure Order ID uniqueness
+        if (orderLocationMap.containsKey(order.orderId())) {
+            throw new IllegalArgumentException("Order with ID " + order.orderId() + " already exists");
+        }
+    }
+
+    @Override
+    public String toString() {
+        return String.format("OrderBook{bids=%d levels, asks=%d levels, total orders=%d}",
+                getPriceLevelCount(Side.BUY),
+                getPriceLevelCount(Side.SELL),
+                getTotalOrderCount());
     }
 }
