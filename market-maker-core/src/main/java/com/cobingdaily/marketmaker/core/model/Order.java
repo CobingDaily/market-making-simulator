@@ -24,5 +24,11 @@ public record Order(
         if (quantity.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Quantity must be positive");
         }
+        if (type == OrderType.LIMIT && price == null) {
+            throw new IllegalArgumentException("Limit orders must have a price");
+        }
+        if (type == OrderType.MARKET && price != null) {
+            throw new IllegalArgumentException("Market orders cannot have a price");
+        }
     }
 }

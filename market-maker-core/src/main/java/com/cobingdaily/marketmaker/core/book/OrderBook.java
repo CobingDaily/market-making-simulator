@@ -19,7 +19,6 @@ public interface OrderBook {
     int getMarketDepth(Side side);
     int getMarketDepth(Side side, int limit);
 
-
     Queue<Order> getOrdersAtPrice(Side side, BigDecimal price);
 
     //TODO: Implement getSnapshot();
