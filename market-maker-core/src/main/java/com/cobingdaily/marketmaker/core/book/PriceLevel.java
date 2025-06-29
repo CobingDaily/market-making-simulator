@@ -123,7 +123,7 @@ public class PriceLevel {
         }
 
         orders.offer(order);
-        totalQuantity.add(order.price().longValue());
+        totalQuantity.add(order.quantity().longValue());
         orderCount.incrementAndGet();
     }
 
@@ -148,7 +148,6 @@ public class PriceLevel {
         }
         return null;
     }
-
 
     @Override
     public boolean equals(Object obj) {
