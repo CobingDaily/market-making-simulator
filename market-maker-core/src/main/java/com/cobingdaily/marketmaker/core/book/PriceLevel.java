@@ -6,7 +6,7 @@ import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.LongAdder;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Represents all orders at a specific price level in the order book.
@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.LongAdder;
 public class PriceLevel {
     private final BigDecimal price;
     private final Queue<Order> orders;
-    private final LongAdder totalQuantity;
+    private final AtomicReference<BigDecimal> totalQuantity;
     private final AtomicInteger orderCount;
 
     /**
@@ -31,7 +31,7 @@ public class PriceLevel {
     public PriceLevel(BigDecimal price) {
         this.price = Objects.requireNonNull(price, "Price cannot be null");
         this.orders = new ConcurrentLinkedQueue<>();
-        this.totalQuantity = new LongAdder();
+        this.totalQuantity = new AtomicReference<>(BigDecimal.ZERO);
         this.orderCount = new AtomicInteger(0);
     }
 
@@ -60,7 +60,7 @@ public class PriceLevel {
      * @return sum of all order quantities
      */
     public BigDecimal getTotalQuantity() {
-        return BigDecimal.valueOf(totalQuantity.sum());
+        return totalQuantity.get();
     }
 
     /**
@@ -98,7 +98,7 @@ public class PriceLevel {
     public Order pollFirst() {
         var order = orders.poll();
         if (order != null) {
-            totalQuantity.add(-order.quantity().longValue());
+            totalQuantity.updateAndGet(current -> current.subtract(order.quantity()));
             orderCount.decrementAndGet();
         }
         return order;
@@ -123,7 +123,7 @@ public class PriceLevel {
         }
 
         orders.offer(order);
-        totalQuantity.add(order.quantity().longValue());
+        totalQuantity.updateAndGet(current -> current.add(order.quantity()));
         orderCount.incrementAndGet();
     }
 
@@ -141,7 +141,7 @@ public class PriceLevel {
             var order = iterator.next();
             if (order.orderId().equals(orderId)) {
                 iterator.remove();
-                totalQuantity.add(-order.quantity().longValue());
+                totalQuantity.updateAndGet(current -> current.subtract(order.quantity()));
                 orderCount.decrementAndGet();
                 return order;
             }

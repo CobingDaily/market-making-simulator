@@ -24,7 +24,7 @@ import java.util.Objects;
  * @param type      Order type (MARKET or LIMIT)
  * @param side      Side of the order (BUY or SELL)
  * @param price     Price per unit (required for LIMIT orders, optional for MARKET)
- * @param quantity  Number of units to trade
+ * @param quantity  Number of units to trade (supports decimal quantities)
  * @param traderId  Identifier of the trader placing the order
  * @param timestamp When the order was created
  *
@@ -40,9 +40,11 @@ public record Order(
         String traderId,
         Instant timestamp
 ) {
-    /** Price scale for consistent decimal handling */
+    /** Price scale for consistent decimal handling (2 decimal places for price) */
     private static final int PRICE_SCALE = 2;
-    private static final int QUANTITY_SCALE = 0;
+
+    /** Quantity scale for decimal handling (2 decimal places for quantity precision) */
+    private static final int QUANTITY_SCALE = 2;
 
     /**
      * Compact constructor with comprehensive validation.
@@ -78,7 +80,7 @@ public record Order(
         if (price != null) {
             price = price.setScale(PRICE_SCALE, RoundingMode.HALF_UP);
         }
-        quantity = quantity.setScale(QUANTITY_SCALE, RoundingMode.DOWN);
+        quantity = quantity.setScale(QUANTITY_SCALE, RoundingMode.HALF_UP);
     }
 
     /**
