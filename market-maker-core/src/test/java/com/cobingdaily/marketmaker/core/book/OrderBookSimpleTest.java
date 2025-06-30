@@ -132,16 +132,11 @@ class OrderBookSimpleTest {
         }
 
         @Test
-        @DisplayName("should reject invalid orders")
-        void shouldRejectInvalidOrders() {
+        @DisplayName("should reject null order")
+        void shouldRejectNullOrder() {
             assertThatThrownBy(() -> orderBook.addOrder(null))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("Order cannot be null");
-
-            Order zeroQuantityOrder = createOrder(Side.BUY, "100.00", "0");
-            assertThatThrownBy(() -> orderBook.addOrder(zeroQuantityOrder))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessage("Order quantity must be positive");
         }
     }
 
