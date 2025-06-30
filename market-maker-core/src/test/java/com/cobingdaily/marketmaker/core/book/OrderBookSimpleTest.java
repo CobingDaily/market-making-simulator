@@ -218,13 +218,15 @@ class OrderBookSimpleTest {
             // Then
             assertThat(orderBook.getMarketDepth(Side.BUY)).isEqualTo(4);
             assertThat(orderBook.getMarketDepth(Side.SELL)).isEqualTo(3);
-            assertThat(orderBook.getMarketDepth(Side.BUY, 2)).isEqualTo(3); // Top 2 levels: 2 + 1
+            // Top 2 levels: 2 + 1
+            assertThat(orderBook.getMarketDepth(Side.BUY, 2)).isEqualTo(3);
             assertThat(orderBook.getTotalOrderCount()).isEqualTo(7);
 
             // Verify top levels
             var topBidLevels = orderBook.getTopPriceLevels(Side.BUY, 2);
             assertThat(topBidLevels).hasSize(2);
-            assertThat(topBidLevels.get(0).getOrderCount()).isEqualTo(2); // 100.00 level
+            // 100.00 level
+            assertThat(topBidLevels.get(0).getOrderCount()).isEqualTo(2);
             assertThat(topBidLevels.get(0).getTotalQuantity()).isEqualByComparingTo("1500");
         }
 
@@ -308,7 +310,6 @@ class OrderBookSimpleTest {
         @DisplayName("should handle concurrent operations")
         void shouldHandleConcurrentOperations() {
             // This test would require more sophisticated setup for true concurrency testing
-            // For now, just verify that operations don't interfere with each other
 
             // Given
             List<Order> orders = List.of(
