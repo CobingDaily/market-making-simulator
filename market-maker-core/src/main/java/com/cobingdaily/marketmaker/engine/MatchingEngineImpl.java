@@ -68,9 +68,12 @@ public class MatchingEngineImpl implements MatchingEngine {
         orderStatusMap.put(incomingOrder.orderId(), result.finalStatus());
 
         // If there's a remaining order, add it to the order book
+        // Market orders can't be added to the book (no price)
         if (result.remainingOrder().isPresent() && result.finalStatus() != OrderStatus.CANCELLED) {
             Order remainingOrder = result.remainingOrder().get();
-            orderBook.addOrder(remainingOrder);
+            if (remainingOrder.type() == OrderType.LIMIT) {
+                orderBook.addOrder(remainingOrder);
+            }
         }
 
         return result;

@@ -82,7 +82,7 @@ public class OrderValidator {
             );
         }
 
-        if (price.compareTo(MAX_PRICE) < 0) {
+        if (price.compareTo(MAX_PRICE) > 0) {
             throw new ValidationException(
                     String.format("Price %s exceeds maximum allowed price %s", price, MAX_PRICE)
             );
