@@ -11,15 +11,15 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
 
-@DisplayName("PriceLevel Tests")
-class PriceLevelTest {
+@DisplayName("PriceLevelImpl Tests")
+class PriceLevelImplTest {
 
     private PriceLevel priceLevel;
     private final BigDecimal testPrice = new BigDecimal("100.00");
 
     @BeforeEach
     void setUp() {
-        priceLevel = new PriceLevel(testPrice);
+        priceLevel = new PriceLevelImpl(testPrice);
     }
 
     @Nested
@@ -39,7 +39,7 @@ class PriceLevelTest {
         @Test
         @DisplayName("should reject null price")
         void shouldRejectNullPrice() {
-            assertThatThrownBy(() -> new PriceLevel(null))
+            assertThatThrownBy(() -> new PriceLevelImpl(null))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessage("Price cannot be null");
         }
@@ -303,9 +303,9 @@ class PriceLevelTest {
         @DisplayName("should implement equality based on price")
         void shouldImplementEqualityBasedOnPrice() {
             // Given
-            var level1 = new PriceLevel(new BigDecimal("100.00"));
-            var level2 = new PriceLevel(new BigDecimal("100.00"));
-            var level3 = new PriceLevel(new BigDecimal("100.01"));
+            var level1 = new PriceLevelImpl(new BigDecimal("100.00"));
+            var level2 = new PriceLevelImpl(new BigDecimal("100.00"));
+            var level3 = new PriceLevelImpl(new BigDecimal("100.01"));
 
             // Then
             assertThat(level1).isEqualTo(level2);

@@ -35,7 +35,7 @@ public class OrderBookSimple implements OrderBook{
         validateOrder(order);
 
         var book = getBookForSide(order.side());
-        var priceLevel = book.computeIfAbsent(order.price(), PriceLevel::new);
+        var priceLevel = book.computeIfAbsent(order.price(), PriceLevelImpl::new);
 
         priceLevel.addOrder(order);
         orderLocationMap.put(order.orderId(), new OrderLocation(order, priceLevel));
