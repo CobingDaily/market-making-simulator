@@ -120,7 +120,7 @@ public class PositionManagerImpl implements PositionManager {
         var orderImpact = calculateOrderImpact(order);
         var projectedPosition = currentNet.add(orderImpact);
 
-        return projectedPosition.compareTo(BigDecimal.ZERO) <= 0;
+        return projectedPosition.abs().compareTo(maxPosition) <= 0;
     }
 
     @Override
@@ -150,8 +150,8 @@ public class PositionManagerImpl implements PositionManager {
      * Handles a buy trade execution.
      */
     private void handleBuyTrade(PositionState state, Trade trade) {
-        state.totalBought.add(trade.quantity());
-        state.totalBoughtValue.add(
+        state.totalBought = state.totalBought.add(trade.quantity());
+        state.totalBoughtValue = state.totalBoughtValue.add(
                 trade.price().multiply(trade.quantity())
         );
 
@@ -183,16 +183,21 @@ public class PositionManagerImpl implements PositionManager {
      */
     private void calculateRealizedPnL(PositionState state, Trade trade, BigDecimal previousNet) {
         var closingQuantity = trade.quantity().min(previousNet.abs());
-
         if (closingQuantity.compareTo(BigDecimal.ZERO) > 0) {
             BigDecimal pnl;
             if (previousNet.compareTo(BigDecimal.ZERO) > 0) {
                 // Closing the long position by selling
+                if (state.totalBought.compareTo(BigDecimal.ZERO) == 0) {
+                    return;
+                }
                 var avgBuyPrice = state.totalBoughtValue.divide(state.totalBought, PRICE_SCALE, RoundingMode.HALF_UP);
                 pnl = trade.price().subtract(avgBuyPrice).multiply(closingQuantity);
             }
             else {
                 // Closing the short position by buying
+                if (state.totalSold.compareTo(BigDecimal.ZERO) == 0) {
+                    return;
+                }
                 var avgBuyPrice = state.totalSoldValue.divide(state.totalSold, PRICE_SCALE, RoundingMode.HALF_UP);
                 pnl = avgBuyPrice.subtract(trade.price()).multiply(closingQuantity);
             }
